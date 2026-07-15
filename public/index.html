@@ -1,0 +1,321 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Status Reactor — Dashboard</title>
+<style>
+  :root {
+    --bg: #0b0b0f;
+    --panel: #15151c;
+    --panel-2: #1c1c26;
+    --border: #2a2a36;
+    --accent: #c9a4ff;
+    --accent-2: #ff6ec7;
+    --text: #eae8f0;
+    --muted: #8f8ba3;
+    --green: #4ade80;
+    --red: #f87171;
+    --yellow: #facc15;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: radial-gradient(circle at 20% 0%, #1a1626 0%, var(--bg) 60%);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    padding: 20px;
+    max-width: 720px;
+    margin: 0 auto;
+  }
+  h1 {
+    font-size: 22px;
+    margin: 6px 0 2px;
+    background: linear-gradient(90deg, var(--accent), var(--accent-2));
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+  .sub { color: var(--muted); font-size: 13px; margin-bottom: 20px; }
+  .card {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 16px;
+    margin-bottom: 16px;
+  }
+  .row { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
+  .badge {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 4px 10px; border-radius: 999px; font-size: 12px; font-weight: 600;
+    background: var(--panel-2); border: 1px solid var(--border);
+  }
+  .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--muted); }
+  .dot.connected { background: var(--green); }
+  .dot.qr { background: var(--yellow); }
+  .dot.disconnected { background: var(--red); }
+  .stats-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+  .stat { background: var(--panel-2); border-radius: 10px; padding: 10px; text-align: center; }
+  .stat .num { font-size: 20px; font-weight: 700; color: var(--accent); }
+  .stat .label { font-size: 11px; color: var(--muted); margin-top: 2px; }
+  h3 { margin: 0 0 12px; font-size: 14px; letter-spacing: 0.03em; color: var(--muted); text-transform: uppercase; }
+  label { display: block; font-size: 13px; margin: 12px 0 6px; color: var(--muted); }
+  select, input[type=text], input[type=number], textarea {
+    width: 100%; padding: 10px; border-radius: 8px; border: 1px solid var(--border);
+    background: var(--panel-2); color: var(--text); font-size: 14px;
+  }
+  .switch { position: relative; width: 46px; height: 26px; }
+  .switch input { opacity: 0; width: 0; height: 0; }
+  .slider {
+    position: absolute; cursor: pointer; inset: 0; background: var(--panel-2);
+    border: 1px solid var(--border); border-radius: 999px; transition: .2s;
+  }
+  .slider:before {
+    content: ""; position: absolute; height: 18px; width: 18px; left: 3px; top: 3px;
+    background: var(--muted); border-radius: 50%; transition: .2s;
+  }
+  input:checked + .slider { background: linear-gradient(90deg, var(--accent), var(--accent-2)); }
+  input:checked + .slider:before { transform: translateX(20px); background: #0b0b0f; }
+  button {
+    cursor: pointer; border: none; border-radius: 8px; padding: 10px 14px;
+    font-size: 13px; font-weight: 600; background: var(--panel-2); color: var(--text);
+    border: 1px solid var(--border);
+  }
+  button.primary { background: linear-gradient(90deg, var(--accent), var(--accent-2)); color: #12101a; }
+  button.danger { color: var(--red); }
+  .emoji-pool { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+  .emoji-chip {
+    background: var(--panel-2); border: 1px solid var(--border); border-radius: 8px;
+    padding: 6px 10px; font-size: 16px; cursor: pointer;
+  }
+  .emoji-chip.remove { opacity: 0.55; }
+  .log-item {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 8px 0; border-bottom: 1px solid var(--border); font-size: 13px;
+  }
+  .log-item:last-child { border-bottom: none; }
+  .log-emoji { font-size: 18px; margin-right: 8px; }
+  .log-meta { color: var(--muted); font-size: 11px; }
+  #qrWrap { text-align: center; padding: 10px 0; }
+  #qrWrap img { width: 180px; height: 180px; border-radius: 10px; }
+  .flex-gap { display: flex; gap: 8px; flex-wrap: wrap; }
+</style>
+</head>
+<body>
+
+  <h1>Status Reactor</h1>
+  <div class="sub">Auto-reaction bot for WhatsApp statuses — control panel</div>
+
+  <div class="card">
+    <div class="row">
+      <div class="badge"><span class="dot" id="connDot"></span><span id="connText">Connecting…</span></div>
+      <label class="switch">
+        <input type="checkbox" id="enabledToggle" />
+        <span class="slider"></span>
+      </label>
+    </div>
+    <div id="qrWrap" style="display:none;">
+      <p class="sub">Scan with WhatsApp → Linked Devices</p>
+      <img id="qrImg" src="" alt="QR code" />
+    </div>
+  </div>
+
+  <div class="card">
+    <h3>Activity</h3>
+    <div class="stats-grid">
+      <div class="stat"><div class="num" id="statToday">0</div><div class="label">Today</div></div>
+      <div class="stat"><div class="num" id="statWeek">0</div><div class="label">This week</div></div>
+      <div class="stat"><div class="num" id="statTotal">0</div><div class="label">All time</div></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h3>Reaction Settings</h3>
+
+    <label>Mode</label>
+    <select id="modeSelect">
+      <option value="all">React to everyone</option>
+      <option value="whitelist">Only whitelisted contacts</option>
+      <option value="blacklist">Everyone except blacklisted</option>
+    </select>
+
+    <label>Whitelist / Blacklist (comma-separated JIDs, e.g. 2547xxxxxxxx@s.whatsapp.net)</label>
+    <textarea id="listInput" rows="2"></textarea>
+
+    <label>Reaction style</label>
+    <select id="reactionModeSelect">
+      <option value="random">Random from emoji pool</option>
+      <option value="fixed">Always the same emoji</option>
+    </select>
+
+    <div id="fixedEmojiWrap" style="display:none;">
+      <label>Fixed emoji</label>
+      <input type="text" id="fixedEmojiInput" maxlength="4" />
+    </div>
+
+    <div id="poolWrap">
+      <label>Emoji pool</label>
+      <div class="emoji-pool" id="emojiPool"></div>
+      <div class="flex-gap" style="margin-top:8px;">
+        <input type="text" id="newEmojiInput" placeholder="Add emoji" style="width:100px;" maxlength="4" />
+        <button id="addEmojiBtn">Add</button>
+      </div>
+    </div>
+
+    <label>Delay before reacting (ms)</label>
+    <div class="flex-gap">
+      <input type="number" id="minDelay" placeholder="min" style="flex:1;" />
+      <input type="number" id="maxDelay" placeholder="max" style="flex:1;" />
+    </div>
+
+    <div class="row" style="margin-top:16px;">
+      <button class="primary" id="saveBtn">Save Settings</button>
+      <span class="sub" id="saveMsg"></span>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="row">
+      <h3 style="margin:0;">Recent Reactions</h3>
+      <button class="danger" id="clearLogsBtn">Clear log</button>
+    </div>
+    <div id="logList"></div>
+  </div>
+
+<script>
+const $ = (id) => document.getElementById(id);
+let settingsCache = null;
+
+async function fetchStatus() {
+  const res = await fetch('/api/status');
+  const data = await res.json();
+  const dot = $('connDot'), text = $('connText'), qrWrap = $('qrWrap'), qrImg = $('qrImg');
+  dot.className = 'dot ' + data.connectionState;
+  const labels = { connecting: 'Connecting…', qr: 'Scan QR to connect', connected: 'Connected', disconnected: 'Disconnected' };
+  text.textContent = labels[data.connectionState] || data.connectionState;
+
+  if (data.connectionState === 'qr' && data.qr) {
+    qrWrap.style.display = 'block';
+    qrImg.src = data.qr;
+  } else {
+    qrWrap.style.display = 'none';
+  }
+
+  if (!settingsCache) {
+    settingsCache = data.settings;
+    renderSettings();
+  }
+  $('enabledToggle').checked = data.settings.enabled;
+}
+
+async function fetchStats() {
+  const res = await fetch('/api/stats');
+  const s = await res.json();
+  $('statToday').textContent = s.today;
+  $('statWeek').textContent = s.week;
+  $('statTotal').textContent = s.total;
+}
+
+async function fetchLogs() {
+  const res = await fetch('/api/logs?limit=25');
+  const { entries } = await res.json();
+  const list = $('logList');
+  if (!entries.length) {
+    list.innerHTML = '<div class="sub">No reactions yet.</div>';
+    return;
+  }
+  list.innerHTML = entries.map(e => `
+    <div class="log-item">
+      <div><span class="log-emoji">${e.success ? (e.emoji || '⚠️') : '⚠️'}</span>${e.fromName}</div>
+      <div class="log-meta">${new Date(e.timestamp).toLocaleTimeString()}</div>
+    </div>
+  `).join('');
+}
+
+function renderSettings() {
+  const s = settingsCache;
+  $('modeSelect').value = s.mode;
+  $('listInput').value = (s.mode === 'whitelist' ? s.whitelist : s.blacklist).join(', ');
+  $('reactionModeSelect').value = s.reactionMode;
+  $('fixedEmojiInput').value = s.fixedEmoji;
+  $('fixedEmojiWrap').style.display = s.reactionMode === 'fixed' ? 'block' : 'none';
+  $('poolWrap').style.display = s.reactionMode === 'random' ? 'block' : 'none';
+  $('minDelay').value = s.minDelayMs;
+  $('maxDelay').value = s.maxDelayMs;
+  renderEmojiPool();
+}
+
+function renderEmojiPool() {
+  const pool = settingsCache.emojis;
+  $('emojiPool').innerHTML = pool.map((e, i) =>
+    `<span class="emoji-chip" data-i="${i}">${e} ✕</span>`
+  ).join('');
+  document.querySelectorAll('.emoji-chip').forEach(chip => {
+    chip.addEventListener('click', () => {
+      const i = Number(chip.dataset.i);
+      settingsCache.emojis.splice(i, 1);
+      renderEmojiPool();
+    });
+  });
+}
+
+$('reactionModeSelect').addEventListener('change', (e) => {
+  $('fixedEmojiWrap').style.display = e.target.value === 'fixed' ? 'block' : 'none';
+  $('poolWrap').style.display = e.target.value === 'random' ? 'block' : 'none';
+});
+
+$('addEmojiBtn').addEventListener('click', () => {
+  const val = $('newEmojiInput').value.trim();
+  if (val) {
+    settingsCache.emojis.push(val);
+    $('newEmojiInput').value = '';
+    renderEmojiPool();
+  }
+});
+
+$('enabledToggle').addEventListener('change', async (e) => {
+  await fetch('/api/settings', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ enabled: e.target.checked })
+  });
+});
+
+$('saveBtn').addEventListener('click', async () => {
+  const mode = $('modeSelect').value;
+  const listRaw = $('listInput').value.split(',').map(s => s.trim()).filter(Boolean);
+  const payload = {
+    mode,
+    reactionMode: $('reactionModeSelect').value,
+    fixedEmoji: $('fixedEmojiInput').value || '🔥',
+    emojis: settingsCache.emojis.length ? settingsCache.emojis : ['🔥'],
+    minDelayMs: Number($('minDelay').value) || 1000,
+    maxDelayMs: Number($('maxDelay').value) || 5000
+  };
+  if (mode === 'whitelist') payload.whitelist = listRaw;
+  if (mode === 'blacklist') payload.blacklist = listRaw;
+
+  const res = await fetch('/api/settings', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload)
+  });
+  settingsCache = await res.json();
+  $('saveMsg').textContent = 'Saved ✓';
+  setTimeout(() => $('saveMsg').textContent = '', 2000);
+});
+
+$('clearLogsBtn').addEventListener('click', async () => {
+  await fetch('/api/logs/clear', { method: 'POST' });
+  fetchLogs();
+  fetchStats();
+});
+
+function refreshAll() {
+  fetchStatus();
+  fetchStats();
+  fetchLogs();
+}
+refreshAll();
+setInterval(refreshAll, 5000);
+</script>
+</body>
+</html>
