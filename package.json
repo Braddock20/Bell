@@ -1,0 +1,17 @@
+{
+  "name": "whatsapp-status-reactor",
+  "version": "1.0.0",
+  "description": "WhatsApp bot that auto-reacts to statuses, with a management dashboard",
+  "main": "src/index.js",
+  "scripts": {
+    "start": "node src/index.js"
+  },
+  "dependencies": {
+    "@whiskeysockets/baileys": "^6.7.9",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.5",
+    "express": "^4.19.2",
+    "pino": "^9.3.2",
+    "qrcode": "^1.5.3"
+  }
+}
